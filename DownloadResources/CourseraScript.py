@@ -40,21 +40,15 @@ def init(uname,pwd,course):
     br.open(VideoLectures)
     return br    
 
-def createDir(course):
-    while True:
-        print 'Enter path to store videos: ',
-        DirPath=raw_input()
-        DirPath=DirPath+'/'+course
-        if not os.path.exists(DirPath):
-            try:
-                os.mkdir(DirPath)
-            except Exception, e:
-                print e
-                sys.exit(1)
-            return os.path.abspath(DirPath)
-        else:
-            print 'Entered Path already exists, enter Correct Path'
-            continue
+def createDir(course, dirpath):
+    DirPath = dirpath + '/'+course
+    if not os.path.exists(DirPath):
+        try:
+            os.mkdir(DirPath)
+        except Exception, e:
+            print e
+            sys.exit(1)
+    return os.path.abspath(DirPath)
 
 def resolve_name_with_illegal_char(name):
     return re.sub(r'[\\/:*?"<>|]', ' -', name)
@@ -74,24 +68,44 @@ def getVideoLinks(br,path,course):
     else:
         print 'Unable to match title to video links.'
         video = []
-    return video    
+    return video
 
 def download(br,video,path):
     for r in video:
         filename = os.path.join(path, r[0])
         print 'Downloading', r[0]
-        br.retrieve(r[1], filename)
+        d = br.open(r[1])
+        if os.path.exists(filename) and int(d.info()["Content-Length"]) == os.stat(filename).st_size:
+            print r[0], "already present"
+        else:
+            br.retrieve(r[1], filename)
+        d.close()
 
 def main():
-    print 'UserName: ',
-    uname=raw_input()
-    pwd=getpass.getpass('Password: ')
-    print 'CourseID: ',
-    course=raw_input()
+    import sys
+
+    config = os.path.expanduser("~/.cousera")
+    if os.path.exists(config):
+        data = open(config).readlines()
+        uname = data[0].split('=')[1].strip()
+        pwd = data[1].split('=')[1].strip()
+    else:
+        uname=raw_input('Username: ')
+        pwd = getpass.getpass('Password: ')
+
+    if len(sys.argv) == 3:
+        course = sys.argv[1]
+        path = sys.argv[2]
+    else:
+        print 'CourseID: ',
+        course=raw_input()
+        print 'Enter path to store videos: ',
+        path=raw_input()
+
     br=init(uname,pwd,course)#initialize browser
-    path=createDir(course)
+    path=createDir(course, path)
     vid=getVideoLinks(br,path,course);
     download(br,vid,path)
-    
+
 if __name__=='__main__':
-    main()        
+    main()
